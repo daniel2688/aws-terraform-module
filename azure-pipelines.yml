@@ -1,0 +1,70 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: 'AWS Toolkit for Azure DevOps'
+  - name: environment
+    value: 'dev'  # Cambiar a 'qa' o 'prod' según sea necesario
+
+steps:
+  - task: TerraformInstaller@0
+    inputs:
+      terraformVersion: 'latest'
+
+  # Instalación de Checkov
+  - script: |
+      echo "📥 Instalando Checkov para escaneo de seguridad"
+      pip install checkov
+    displayName: 'Install Checkov'
+
+  - script: |
+      echo "🔒 Configurando variables de entorno de AWS"
+      export AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID)
+      export AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY)
+      export AWS_DEFAULT_REGION=$(AWS_REGION)
+
+      echo "🚀 Navegando al entorno: $(environment)"
+      cd environments/$(environment)
+
+      echo "🛠️ Inicializando Terraform con configuración del backend S3"
+      terraform init -reconfigure
+
+      echo "📊 Generando el plan de ejecución de Terraform"
+      terraform plan -out=tfplan
+
+      echo "🔍 Escaneando la infraestructura con Checkov"
+      checkov -d . --framework terraform || true  # No falla el pipeline
+    displayName: 'Terraform Init, Plan and Checkov Scan'
+
+  - script: |
+      echo "🔒 Configurando variables de entorno de AWS para aplicar cambios"
+      export AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID)
+      export AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY)
+      export AWS_DEFAULT_REGION=$(AWS_REGION)
+
+      cd environments/$(environment)
+      echo "🚀 Aplicando cambios en Terraform"
+      terraform apply -auto-approve tfplan
+    displayName: 'Terraform Apply'
+    continueOnError: true  # Permite continuar incluso si falla
+
+  - script: |
+      echo "⏳ Esperando 3 minutos antes de destruir recursos..."
+      sleep 180
+    displayName: 'Wait for 3 minutes'
+    condition: always()  # Asegura que este paso se ejecute siempre
+
+  - script: |
+      echo "🔒 Configurando variables de entorno de AWS para destruir recursos"
+      export AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID)
+      export AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY)
+      export AWS_DEFAULT_REGION=$(AWS_REGION)
+
+      cd environments/$(environment)
+      echo "💥 Destruyendo recursos con Terraform"
+      terraform destroy -auto-approve
+    displayName: 'Terraform Destroy'
+    condition: always()  # Ejecutar siempre, incluso si los pasos anteriores fallan
