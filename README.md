@@ -6,7 +6,7 @@ Este módulo de Terraform está diseñado para gestionar recursos en tres ambien
 
 - Configuración para tres ambientes: QA, Dev y Prod.
 - Modularidad para facilitar la reutilización.
-- Compatible con las mejores prácticas de Terraform.
+- Se ha tomado en cuenta servicios de segruidad, pero igual esta en proceso de mejora.
 
 ## Estructura del Módulo
 
