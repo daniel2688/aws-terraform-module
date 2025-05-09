@@ -3,7 +3,7 @@ terraform {
     bucket         = "aws-backend-s3-assets-tfstate-2688"
     key            = "env/dev/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "backend-dynamodb-assets-tfstate"
+    use_lockfile   = true # Bloquea el archivo de estado para evitar cambios simultáneos.
     encrypt        = true
   }
 }
